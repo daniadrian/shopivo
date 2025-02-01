@@ -23,5 +23,32 @@ if (!validate.success) {
     console.log(validate)
     return { error: validate.error.errors[0].message }
 }
-    return redirect('/dashboard/sign-in')
+const existingUser = await prisma.user.findFirst({
+    where: {
+        email: validate.data.email
+    }
+})
+
+if (!existingUser) {
+    return {
+        error: 'Email not found'
+    }
+}
+    const comparePassword = bcrypt.compareSync(validate.data.password, existingUser.password)
+
+    if (!comparePassword) {
+        return {
+            error: 'Invalid password'
+        }
+    }
+
+    const session = await lucia.createSession(existingUser.id, {})
+    const sessionCookie = lucia.createSessionCookie(session.id)
+    cookies().set(
+        sessionCookie.name,
+        sessionCookie.value,
+        sessionCookie.attributes
+    )
+
+    return redirect('/dashboard')
 }
